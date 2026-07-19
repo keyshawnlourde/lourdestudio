@@ -5,6 +5,8 @@ export type ScheduleClass = {
   title: string;
   location: string;
   packageSlug: string;
+  capacity: number;
+  booked: number;
 };
 
 export type TimetableDay = {
@@ -16,182 +18,221 @@ export type TimetableDay = {
   classes: ScheduleClass[];
 };
 
-export const timetableDays: TimetableDay[] = [
-  {
-    key: "sat-18",
-    shortLabel: "Today",
-    date: "18",
-    dateIso: "2026-07-18",
-    fullLabel: "Saturday, 18 Jul",
-    classes: [],
-  },
-  {
-    key: "sun-19",
-    shortLabel: "Sun",
-    date: "19",
-    dateIso: "2026-07-19",
-    fullLabel: "Sunday, 19 Jul",
-    classes: [
-      {
-        id: "sun-kids-1",
-        time: "1:00 PM",
-        duration: "90 mins",
-        title: "Muay Thai Kids Level 1",
-        location: "Lourde Grove Studio",
-        packageSlug: "private-coaching",
-      },
-      {
-        id: "sun-kids-2",
-        time: "3:00 PM",
-        duration: "90 mins",
-        title: "Muay Thai Kids Level 2",
-        location: "Lourde Grove Studio",
-        packageSlug: "private-coaching",
-      },
-      {
-        id: "sun-aerial",
-        time: "5:00 PM",
-        duration: "120 mins",
-        title: "Aerial Hammock",
-        location: "Lourde Grove Studio",
-        packageSlug: "aerial-classes",
-      },
-      {
-        id: "sun-pole",
-        time: "7:30 PM",
-        duration: "60 mins",
-        title: "Pole Beginner",
-        location: "Lourde Grove Studio",
-        packageSlug: "pole-classes",
-      },
-    ],
-  },
-  {
-    key: "mon-20",
-    shortLabel: "Mon",
-    date: "20",
-    dateIso: "2026-07-20",
-    fullLabel: "Monday, 20 Jul",
-    classes: [
-      {
-        id: "mon-ladies",
-        time: "4:00 PM",
-        duration: "90 mins",
-        title: "Muay Thai Ladies",
-        location: "Lourde Grove Studio",
-        packageSlug: "private-coaching",
-      },
-      {
-        id: "mon-pole",
-        time: "6:00 PM",
-        duration: "60 mins",
-        title: "Pole Beginner",
-        location: "Lourde Grove Studio",
-        packageSlug: "pole-classes",
-      },
-    ],
-  },
-  {
-    key: "tue-21",
-    shortLabel: "Tue",
-    date: "21",
-    dateIso: "2026-07-21",
-    fullLabel: "Tuesday, 21 Jul",
-    classes: [
-      {
-        id: "tue-flow",
-        time: "1:00 PM",
-        duration: "60 mins",
-        title: "Sensual Flow",
-        location: "Lourde Grove Studio",
-        packageSlug: "dance-classes",
-      },
-      {
-        id: "tue-open",
-        time: "3:00 PM",
-        duration: "90 mins",
-        title: "Open Training",
-        location: "Lourde Grove Studio",
-        packageSlug: "open-training",
-      },
-      {
-        id: "tue-spin",
-        time: "7:30 PM",
-        duration: "75 mins",
-        title: "Spin Pole",
-        location: "Lourde Grove Studio",
-        packageSlug: "pole-classes",
-      },
-    ],
-  },
-  {
-    key: "wed-22",
-    shortLabel: "Wed",
-    date: "22",
-    dateIso: "2026-07-22",
-    fullLabel: "Wednesday, 22 Jul",
-    classes: [
-      {
-        id: "wed-hammock",
-        time: "6:00 PM",
-        duration: "75 mins",
-        title: "Aerial Hammock",
-        location: "Lourde Grove Studio",
-        packageSlug: "aerial-classes",
-      },
-      {
-        id: "wed-heels",
-        time: "7:30 PM",
-        duration: "75 mins",
-        title: "Heels Choreography",
-        location: "Lourde Grove Studio",
-        packageSlug: "dance-classes",
-      },
-    ],
-  },
-  {
-    key: "thu-23",
-    shortLabel: "Thu",
-    date: "23",
-    dateIso: "2026-07-23",
-    fullLabel: "Thursday, 23 Jul",
-    classes: [
-      {
-        id: "thu-pole",
-        time: "6:00 PM",
-        duration: "60 mins",
-        title: "Pole Beginner",
-        location: "Lourde Grove Studio",
-        packageSlug: "pole-classes",
-      },
-      {
-        id: "thu-aerial-pass",
-        time: "7:30 PM",
-        duration: "90 mins",
-        title: "Unli Aerial Pass Session",
-        location: "Lourde Grove Studio",
-        packageSlug: "unli-aerial-pass",
-      },
-    ],
-  },
-  {
-    key: "fri-24",
-    shortLabel: "Fri",
-    date: "24",
-    dateIso: "2026-07-24",
-    fullLabel: "Friday, 24 Jul",
-    classes: [
-      {
-        id: "fri-dance",
-        time: "6:00 PM",
-        duration: "75 mins",
-        title: "Chair Dance",
-        location: "Lourde Grove Studio",
-        packageSlug: "dance-classes",
-      },
-    ],
-  },
+type WeeklyScheduleTemplate = Omit<ScheduleClass, "id">;
+
+const TIMETABLE_WINDOW_DAYS = 8;
+
+const WEEKDAY_SHORT_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_FULL_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
+const MONTH_SHORT_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const weeklySchedule: Record<number, WeeklyScheduleTemplate[]> = {
+  0: [
+    {
+      time: "1:00 PM",
+      duration: "90 mins",
+      title: "Muay Thai Kids",
+      location: "Lourde Grove Studio",
+      packageSlug: "muay-thai",
+      capacity: 10,
+      booked: 6,
+    },
+    {
+      time: "3:00 PM",
+      duration: "90 mins",
+      title: "Muay Thai Kids",
+      location: "Lourde Grove Studio",
+      packageSlug: "muay-thai",
+      capacity: 10,
+      booked: 4,
+    },
+    {
+      time: "5:00 PM",
+      duration: "120 mins",
+      title: "Hammock",
+      location: "Lourde Grove Studio",
+      packageSlug: "hammock",
+      capacity: 3,
+      booked: 1,
+    },
+    {
+      time: "7:30 PM",
+      duration: "60 mins",
+      title: "Mat Pilates",
+      location: "Lourde Grove Studio",
+      packageSlug: "mat-pilates",
+      capacity: 8,
+      booked: 3,
+    },
+  ],
+  1: [
+    {
+      time: "4:00 PM",
+      duration: "90 mins",
+      title: "Muay Thai Ladies",
+      location: "Lourde Grove Studio",
+      packageSlug: "muay-thai",
+      capacity: 10,
+      booked: 7,
+    },
+    {
+      time: "6:00 PM",
+      duration: "60 mins",
+      title: "Reformer Pilates",
+      location: "Lourde Grove Studio",
+      packageSlug: "reformer-pilates",
+      capacity: 4,
+      booked: 2,
+    },
+  ],
+  2: [
+    {
+      time: "1:00 PM",
+      duration: "60 mins",
+      title: "Mat Pilates",
+      location: "Lourde Grove Studio",
+      packageSlug: "mat-pilates",
+      capacity: 8,
+      booked: 5,
+    },
+    {
+      time: "3:00 PM",
+      duration: "90 mins",
+      title: "Kyokushinryu Karate",
+      location: "Lourde Grove Studio",
+      packageSlug: "karate",
+      capacity: 12,
+      booked: 8,
+    },
+    {
+      time: "7:30 PM",
+      duration: "75 mins",
+      title: "Reformer Pilates",
+      location: "Lourde Grove Studio",
+      packageSlug: "reformer-pilates",
+      capacity: 4,
+      booked: 3,
+    },
+  ],
+  3: [
+    {
+      time: "6:00 PM",
+      duration: "75 mins",
+      title: "Hammock",
+      location: "Lourde Grove Studio",
+      packageSlug: "hammock",
+      capacity: 3,
+      booked: 2,
+    },
+    {
+      time: "7:30 PM",
+      duration: "75 mins",
+      title: "Muay Thai Ladies",
+      location: "Lourde Grove Studio",
+      packageSlug: "muay-thai",
+      capacity: 10,
+      booked: 6,
+    },
+  ],
+  4: [
+    {
+      time: "6:00 PM",
+      duration: "60 mins",
+      title: "Mat Pilates",
+      location: "Lourde Grove Studio",
+      packageSlug: "mat-pilates",
+      capacity: 8,
+      booked: 2,
+    },
+    {
+      time: "7:30 PM",
+      duration: "90 mins",
+      title: "Kyokushinryu Karate",
+      location: "Lourde Grove Studio",
+      packageSlug: "karate",
+      capacity: 12,
+      booked: 9,
+    },
+  ],
+  5: [
+    {
+      time: "6:00 PM",
+      duration: "75 mins",
+      title: "Reformer Pilates",
+      location: "Lourde Grove Studio",
+      packageSlug: "reformer-pilates",
+      capacity: 4,
+      booked: 1,
+    },
+  ],
+  6: [],
+};
+
+function startOfToday(): Date {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
+function addDays(date: Date, days: number): Date {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function toDateIso(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function createTimetableDays(): TimetableDay[] {
+  const today = startOfToday();
+
+  return Array.from({ length: TIMETABLE_WINDOW_DAYS }, (_, offset) => {
+    const date = addDays(today, offset);
+    const weekday = date.getDay();
+    const dateIso = toDateIso(date);
+    const classes = weeklySchedule[weekday].map((classItem, index) => ({
+      ...classItem,
+      id: `${dateIso}-${index}-${classItem.packageSlug}`,
+    }));
+
+    return {
+      key: dateIso,
+      shortLabel: offset === 0 ? "Today" : WEEKDAY_SHORT_LABELS[weekday],
+      date: String(date.getDate()),
+      dateIso,
+      fullLabel: `${WEEKDAY_FULL_LABELS[weekday]}, ${date.getDate()} ${
+        MONTH_SHORT_LABELS[date.getMonth()]
+      }`,
+      classes,
+    };
+  });
+}
+
+export const timetableDays: TimetableDay[] = createTimetableDays();
 
 function parseSessionStart(dateIso: string, time: string): Date {
   const match = time.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/i);

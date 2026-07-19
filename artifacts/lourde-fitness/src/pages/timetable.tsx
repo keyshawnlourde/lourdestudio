@@ -95,6 +95,9 @@ function DaySection({
                       <MapPin className="h-4 w-4 text-primary" />
                       <span>{classItem.location}, Studio</span>
                     </div>
+                    <p className="mt-1 text-xs font-medium text-primary">
+                      {Math.max(0, classItem.capacity - classItem.booked)} remaining
+                    </p>
                   </div>
 
                   {expired ? (
@@ -135,8 +138,11 @@ export function Timetable() {
 
     if (!container || !section) return;
 
+    const containerTop = container.getBoundingClientRect().top;
+    const sectionTop = section.getBoundingClientRect().top;
+
     container.scrollTo({
-      top: section.offsetTop,
+      top: container.scrollTop + sectionTop - containerTop,
       behavior: "smooth",
     });
   }, []);

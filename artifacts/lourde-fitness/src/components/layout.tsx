@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Show, useAuth, useClerk } from "@clerk/react";
 import { useGetMyProfile } from "@workspace/api-client-react";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type LayoutProps = {
@@ -88,17 +88,111 @@ function MobileAuthActions({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
+function getLocalPortalEmail() {
+  const raw = window.localStorage.getItem("lourde.portalSession");
+  if (!raw) return "";
+
+  try {
+    return (JSON.parse(raw) as { email?: string }).email ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function LocalAuthActions({ mobile = false, onNavigate }: { mobile?: boolean; onNavigate?: () => void }) {
+  const [email, setEmail] = useState(getLocalPortalEmail);
+
+  useEffect(() => {
+    const updateEmail = () => setEmail(getLocalPortalEmail());
+    window.addEventListener("lourde-auth-changed", updateEmail);
+    window.addEventListener("storage", updateEmail);
+    return () => {
+      window.removeEventListener("lourde-auth-changed", updateEmail);
+      window.removeEventListener("storage", updateEmail);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    window.localStorage.removeItem("lourde.portalSession");
+    window.dispatchEvent(new Event("lourde-auth-changed"));
+    setEmail("");
+    onNavigate?.();
+  };
+
+  if (!email) {
+    return (
+      <Link href="/sign-in" onClick={onNavigate}>
+        <Button
+          variant="outline"
+          className={mobile ? "w-full" : "font-serif rounded-full px-6"}
+        >
+          Sign In
+        </Button>
+      </Link>
+    );
+  }
+
+  if (mobile) {
+    return (
+      <div className="pt-4 border-t flex flex-col gap-3">
+        <Link href="/portal" onClick={onNavigate}>
+          <Button variant="ghost" className="w-full justify-start">My Portal</Button>
+        </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="text-left text-sm text-muted-foreground hover:text-primary px-4"
+        >
+          Log out
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <Link href="/portal" className="text-sm font-medium hover:text-primary transition-colors">
+        My Portal
+      </Link>
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+      >
+        Log out
+      </button>
+    </div>
+  );
+}
+
 export function Layout({ children, authEnabled = true }: LayoutProps) {
   const [location] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [localPortalEmail, setLocalPortalEmail] = useState(getLocalPortalEmail);
 
-  const navLinks = [
-    { href: "/timetable", label: "Timetable" },
-    { href: "/classes", label: "Classes" },
-    { href: "/packages", label: "Packages" },
-    { href: "/team", label: "Team" },
-    { href: "/rental", label: "Studio Rental" },
-  ];
+  useEffect(() => {
+    const updateEmail = () => setLocalPortalEmail(getLocalPortalEmail());
+    window.addEventListener("lourde-auth-changed", updateEmail);
+    window.addEventListener("storage", updateEmail);
+    return () => {
+      window.removeEventListener("lourde-auth-changed", updateEmail);
+      window.removeEventListener("storage", updateEmail);
+    };
+  }, []);
+
+  const localPortalSignedIn = !authEnabled && Boolean(localPortalEmail);
+  const navLinks = localPortalSignedIn
+    ? [
+        { href: "/portal", label: "Portal" },
+        { href: "/timetable", label: "Timetable" },
+        { href: "/classes", label: "Add Credits" },
+      ]
+    : [
+        { href: "/timetable", label: "Timetable" },
+        { href: "/classes", label: "Classes" },
+        { href: "/team", label: "Team" },
+        { href: "/rental", label: "Studio Rental" },
+      ];
 
   return (
     <div className="min-h-[100dvh] flex flex-col font-sans selection:bg-primary selection:text-primary-foreground">
@@ -125,9 +219,7 @@ export function Layout({ children, authEnabled = true }: LayoutProps) {
             {authEnabled ? (
               <DesktopAuthActions />
             ) : (
-              <Link href="/sign-in">
-                <Button variant="outline" className="font-serif rounded-full px-6">Sign In</Button>
-              </Link>
+              <LocalAuthActions />
             )}
           </div>
 
@@ -159,11 +251,7 @@ export function Layout({ children, authEnabled = true }: LayoutProps) {
             {authEnabled ? (
               <MobileAuthActions onNavigate={() => setMenuOpen(false)} />
             ) : (
-              <div className="pt-4 border-t">
-                <Link href="/sign-in" onClick={() => setMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">Sign In</Button>
-                </Link>
-              </div>
+              <LocalAuthActions mobile onNavigate={() => setMenuOpen(false)} />
             )}
           </div>
         )}
@@ -184,11 +272,13 @@ export function Layout({ children, authEnabled = true }: LayoutProps) {
           <div>
             <h4 className="font-medium mb-4">Explore</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/timetable" className="hover:text-primary">Timetable</Link></li>
-              <li><Link href="/classes" className="hover:text-primary">Classes</Link></li>
-              <li><Link href="/packages" className="hover:text-primary">Packages</Link></li>
-              <li><Link href="/team" className="hover:text-primary">Team</Link></li>
-              <li><Link href="/rental" className="hover:text-primary">Studio Rental</Link></li>
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="hover:text-primary">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div>

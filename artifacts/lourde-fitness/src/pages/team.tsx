@@ -36,25 +36,24 @@ const coaches = [
 export function Team() {
   return (
     <div className="min-h-screen bg-background">
-      <section className="border-b bg-card/80 py-16 md:py-20">
+      <section className="border-b bg-background py-10">
         <div className="container mx-auto max-w-6xl px-4">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-            Lourde Coaches
-          </p>
-          <div className="grid gap-8 md:grid-cols-[0.9fr_1.1fr] md:items-end">
-            <h1 className="font-serif text-4xl leading-tight text-foreground md:text-6xl">
-              Meet the team behind every stronger line.
+          <div className="max-w-3xl">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+              Lourde Coaches
+            </p>
+            <h1 className="font-serif text-4xl leading-tight text-foreground md:text-5xl">
+              Meet the Team
             </h1>
-            <p className="max-w-2xl text-base font-light leading-8 text-muted-foreground md:text-lg">
-              Our coaches bring performance experience, technical discipline,
-              and an encouraging teaching style to pole, dance, aerial, and
-              private training.
+            <p className="mt-4 max-w-2xl text-sm font-light leading-7 text-muted-foreground md:text-base">
+              Supportive coaching across pole, dance, aerial, and private
+              training, led by performers who care about technique and style.
             </p>
           </div>
         </div>
       </section>
 
-      <section className="container mx-auto max-w-6xl px-4 py-14 md:py-20">
+      <section className="container mx-auto max-w-6xl px-4 py-10 md:py-14">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {coaches.map((coach) => (
             <article

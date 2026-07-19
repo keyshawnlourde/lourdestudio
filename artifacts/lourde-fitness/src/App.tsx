@@ -24,7 +24,7 @@ import {
   Packages,
 } from "./pages/packages";
 import { Team } from "./pages/team";
-import { Portal } from "./pages/portal";
+import { Portal, PortalLogin } from "./pages/portal";
 import { Rental } from "./pages/rental";
 import { Checkout } from "./pages/checkout";
 import NotFound from "./pages/not-found";
@@ -159,6 +159,10 @@ function SignUpPage() {
   );
 }
 
+function LocalPortalLoginPage() {
+  return <PortalLogin />;
+}
+
 function PublicRoutesWithoutClerk() {
   return (
     <WouterRouter base={basePath}>
@@ -169,34 +173,38 @@ function PublicRoutesWithoutClerk() {
 
 function PublicSiteRoutesWithoutClerk() {
   return (
-    <Layout authEnabled={false}>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/timetable" component={Timetable} />
-        <Route path="/classes/:slug" component={ClassDetail} />
-        <Route path="/classes" component={ClassesPage} />
-        <Route path="/packages/:slug" component={PackageDetail} />
-        <Route path="/packages" component={Packages} />
-        <Route path="/team" component={Team} />
-        <Route path="/rental" component={Rental} />
-        <Route path="/checkout" component={Checkout} />
-        <Route path="/checkout/:id" component={Checkout} />
-        <Route path="/portal" component={AuthUnavailablePage} />
+    <Switch>
+      <Route path="/portal" component={Portal} />
+      <Route path="/checkout" component={Checkout} />
+      <Route path="/checkout/:id" component={Checkout} />
+      <Route path="/sign-in/*?" component={LocalPortalLoginPage} />
+      <Route path="/sign-up/*?" component={LocalPortalLoginPage} />
 
-        <Route path="/admin" component={AuthUnavailablePage} />
-        <Route path="/admin/students" component={AuthUnavailablePage} />
-        <Route path="/admin/classes" component={AuthUnavailablePage} />
-        <Route path="/admin/packages" component={AuthUnavailablePage} />
-        <Route path="/admin/payments" component={AuthUnavailablePage} />
-        <Route path="/admin/purchases" component={AuthUnavailablePage} />
-        <Route path="/admin/rentals" component={AuthUnavailablePage} />
+      <Route>
+        <Layout authEnabled={false}>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/timetable" component={Timetable} />
+            <Route path="/classes/:slug" component={ClassDetail} />
+            <Route path="/classes" component={ClassesPage} />
+            <Route path="/packages/:slug" component={PackageDetail} />
+            <Route path="/packages" component={Packages} />
+            <Route path="/team" component={Team} />
+            <Route path="/rental" component={Rental} />
 
-        <Route path="/sign-in/*?" component={AuthUnavailablePage} />
-        <Route path="/sign-up/*?" component={AuthUnavailablePage} />
+            <Route path="/admin" component={AuthUnavailablePage} />
+            <Route path="/admin/students" component={AuthUnavailablePage} />
+            <Route path="/admin/classes" component={AuthUnavailablePage} />
+            <Route path="/admin/packages" component={AuthUnavailablePage} />
+            <Route path="/admin/payments" component={AuthUnavailablePage} />
+            <Route path="/admin/purchases" component={AuthUnavailablePage} />
+            <Route path="/admin/rentals" component={AuthUnavailablePage} />
 
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+      </Route>
+    </Switch>
   );
 }
 
