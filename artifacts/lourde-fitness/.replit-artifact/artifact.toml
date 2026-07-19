@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Lourde Fitness Studio"
+version = "1.0.0"
+id = "artifacts/lourde-fitness"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22946
+
+[services.development]
+run = "pnpm --filter @workspace/lourde-fitness run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lourde-fitness", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lourde-fitness/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22946"
+BASE_PATH = "/"

@@ -111,6 +111,18 @@ function isTextMediaType(mediaType: string | null): boolean {
   );
 }
 
+function isHtmlMediaType(mediaType: string | null): boolean {
+  return mediaType === "text/html" || mediaType === "application/xhtml+xml";
+}
+
+function isApiRequest(url: string): boolean {
+  try {
+    return new URL(url, window.location.origin).pathname.startsWith("/api/");
+  } catch {
+    return url.startsWith("/api/");
+  }
+}
+
 // Use strict equality: in browsers, `response.body` is `null` when the
 // response genuinely has no content.  In React Native, `response.body` is
 // always `undefined` because the ReadableStream API is not implemented —
@@ -297,6 +309,16 @@ async function parseSuccessBody(
 ): Promise<unknown> {
   if (hasNoBody(response, requestInfo.method)) {
     return null;
+  }
+
+  const mediaType = getMediaType(response.headers);
+
+  if (
+    responseType === "auto" &&
+    isApiRequest(requestInfo.url) &&
+    isHtmlMediaType(mediaType)
+  ) {
+    return parseJsonBody(response, requestInfo);
   }
 
   const effectiveType =

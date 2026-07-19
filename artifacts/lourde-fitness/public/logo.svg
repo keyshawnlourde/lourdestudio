@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 64" width="220" height="64">
+  <defs>
+    <style>
+      .wordmark { font-family: Georgia, 'Times New Roman', serif; font-size: 34px; fill: #6b4f33; letter-spacing: 1px; }
+      .leaf { fill: #a3784f; }
+    </style>
+  </defs>
+  <g class="leaf">
+    <path d="M14 46c-6-10-6-22 2-30 8-8 20-8 26-2-4 12-10 22-18 28-4 3-7 4-10 4z" />
+    <path d="M16 44c6-12 14-20 24-26" stroke="#6b4f33" stroke-width="1.4" fill="none" stroke-linecap="round" />
+  </g>
+  <text x="52" y="42" class="wordmark">Lourde</text>
+</svg>

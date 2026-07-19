@@ -3,13 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for Lourde Fitness Studio
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+  - name: Students
+    description: Student profile management.
+  - name: Classes
+    description: Class timetable management.
+  - name: Packages
+    description: Class packages and promos students can purchase.
+  - name: Purchases
+    description: Student purchases of packages, with proof-of-payment review.
+  - name: Rentals
+    description: Studio rental reservation requests.
+  - name: PaymentMethods
+    description: Payment QR codes shown to students at checkout.
+  - name: Dashboard
+    description: Admin dashboard summary data.
 paths:
   /healthz:
     get:
@@ -24,6 +40,760 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ---------- Storage ----------
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      description: |
+        Returns a presigned GCS URL for direct upload. The client sends JSON
+        metadata here, then uploads the file directly to the returned URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+      description: |
+        Unconditionally public — no authentication or ACL checks.
+        Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Relative file path within the public search paths.
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve public object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      description: |
+        Serves object entities uploaded via presigned URLs. These can optionally
+        be protected with authentication or ACL checks based on the use case.
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Object path within the private object dir (e.g. `uploads/some-uuid`).
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Students ----------
+  /students/me:
+    get:
+      tags: [Students]
+      operationId: getMyProfile
+      summary: Get or JIT-create the current signed-in student's profile
+      responses:
+        "200":
+          description: Current student profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "401":
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      tags: [Students]
+      operationId: updateMyProfile
+      summary: Update the current signed-in student's own profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "401":
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /students:
+    get:
+      tags: [Students]
+      operationId: listStudents
+      summary: List all students (admin only)
+      responses:
+        "200":
+          description: List of students.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /students/{id}:
+    get:
+      tags: [Students]
+      operationId: getStudent
+      summary: Get a single student by id (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Student not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      tags: [Students]
+      operationId: updateStudent
+      summary: Update a student record (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated student.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Student not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Classes / Timetable ----------
+  /classes:
+    get:
+      tags: [Classes]
+      operationId: listClasses
+      summary: List all classes in the weekly timetable
+      responses:
+        "200":
+          description: List of classes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClassSession"
+    post:
+      tags: [Classes]
+      operationId: createClass
+      summary: Create a class session (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassInput"
+      responses:
+        "201":
+          description: Created class.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassSession"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /classes/{id}:
+    patch:
+      tags: [Classes]
+      operationId: updateClass
+      summary: Update a class session (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassUpdate"
+      responses:
+        "200":
+          description: Updated class.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassSession"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Class not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      tags: [Classes]
+      operationId: deleteClass
+      summary: Delete a class session (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted.
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Class not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Packages / Promos ----------
+  /packages:
+    get:
+      tags: [Packages]
+      operationId: listPackages
+      summary: List all packages/promos
+      parameters:
+        - name: activeOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of packages.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Package"
+    post:
+      tags: [Packages]
+      operationId: createPackage
+      summary: Create a package/promo (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PackageInput"
+      responses:
+        "201":
+          description: Created package.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Package"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /packages/{id}:
+    patch:
+      tags: [Packages]
+      operationId: updatePackage
+      summary: Update a package/promo (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PackageUpdate"
+      responses:
+        "200":
+          description: Updated package.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Package"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Package not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      tags: [Packages]
+      operationId: deletePackage
+      summary: Delete a package/promo (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted.
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Package not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Payment QR codes ----------
+  /payment-methods:
+    get:
+      tags: [PaymentMethods]
+      operationId: listPaymentMethods
+      summary: List active payment QR codes shown to students at checkout
+      responses:
+        "200":
+          description: List of payment methods.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentMethod"
+    post:
+      tags: [PaymentMethods]
+      operationId: createPaymentMethod
+      summary: Add a payment QR code (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentMethodInput"
+      responses:
+        "201":
+          description: Created payment method.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethod"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /payment-methods/{id}:
+    patch:
+      tags: [PaymentMethods]
+      operationId: updatePaymentMethod
+      summary: Update a payment QR code (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentMethodUpdate"
+      responses:
+        "200":
+          description: Updated payment method.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethod"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Payment method not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      tags: [PaymentMethods]
+      operationId: deletePaymentMethod
+      summary: Delete a payment QR code (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted.
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Payment method not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Purchases ----------
+  /purchases/me:
+    get:
+      tags: [Purchases]
+      operationId: listMyPurchases
+      summary: List the current student's own purchases
+      responses:
+        "200":
+          description: List of purchases.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Purchase"
+        "401":
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      tags: [Purchases]
+      operationId: createPurchase
+      summary: Submit a purchase with proof-of-payment screenshot (student)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseInput"
+      responses:
+        "201":
+          description: Created purchase, pending review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Purchase"
+        "401":
+          description: Not signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /purchases:
+    get:
+      tags: [Purchases]
+      operationId: listPurchases
+      summary: List all purchases (admin only)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PurchaseStatus"
+      responses:
+        "200":
+          description: List of purchases.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Purchase"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /purchases/{id}:
+    patch:
+      tags: [Purchases]
+      operationId: reviewPurchase
+      summary: Confirm or reject a purchase (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseReview"
+      responses:
+        "200":
+          description: Updated purchase.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Purchase"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Purchase not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Studio rental reservations ----------
+  /rentals:
+    get:
+      tags: [Rentals]
+      operationId: listRentals
+      summary: List all studio rental requests (admin only)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RentalStatus"
+      responses:
+        "200":
+          description: List of rental requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Rental"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      tags: [Rentals]
+      operationId: createRental
+      summary: Submit a studio rental reservation request (public)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentalInput"
+      responses:
+        "201":
+          description: Created rental request, pending review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+        "400":
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /rentals/{id}:
+    patch:
+      tags: [Rentals]
+      operationId: reviewRental
+      summary: Confirm or reject a studio rental request (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentalReview"
+      responses:
+        "200":
+          description: Updated rental.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rental"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Rental not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  # ---------- Dashboard ----------
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboardSummary
+      summary: Admin dashboard summary counts and totals
+      responses:
+        "200":
+          description: Dashboard summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "403":
+          description: Admins only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +804,522 @@ components:
       required:
         - status
 
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    # ---------- Storage ----------
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+
+    # ---------- Students ----------
+    StudentRole:
+      type: string
+      enum: [student, admin]
+    Student:
+      type: object
+      required:
+        [
+          id,
+          userId,
+          role,
+          name,
+          email,
+          age,
+          profileImageObjectPath,
+          goal,
+          posturalAnalysis,
+          priorExperience,
+          phone,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        role:
+          $ref: "#/components/schemas/StudentRole"
+        name:
+          type: string
+        email:
+          type: string
+        age:
+          type: ["integer", "null"]
+        profileImageObjectPath:
+          type: ["string", "null"]
+        goal:
+          type: ["string", "null"]
+        posturalAnalysis:
+          type: ["string", "null"]
+        priorExperience:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StudentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        age:
+          type: ["integer", "null"]
+        profileImageObjectPath:
+          type: ["string", "null"]
+        goal:
+          type: ["string", "null"]
+        posturalAnalysis:
+          type: ["string", "null"]
+        priorExperience:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+
+    # ---------- Classes ----------
+    ClassSession:
+      type: object
+      required:
+        [
+          id,
+          title,
+          instructor,
+          dayOfWeek,
+          startTime,
+          endTime,
+          level,
+          capacity,
+          description,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        instructor:
+          type: string
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: 0 = Sunday .. 6 = Saturday
+        startTime:
+          type: string
+          description: "24h time, e.g. 18:00"
+        endTime:
+          type: string
+          description: "24h time, e.g. 19:00"
+        level:
+          type: string
+        capacity:
+          type: integer
+        description:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    ClassInput:
+      type: object
+      required: [title, instructor, dayOfWeek, startTime, endTime, level, capacity]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        instructor:
+          type: string
+          minLength: 1
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+        startTime:
+          type: string
+          minLength: 1
+        endTime:
+          type: string
+          minLength: 1
+        level:
+          type: string
+          minLength: 1
+        capacity:
+          type: integer
+          minimum: 1
+        description:
+          type: string
+    ClassUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        instructor:
+          type: string
+          minLength: 1
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+        startTime:
+          type: string
+          minLength: 1
+        endTime:
+          type: string
+          minLength: 1
+        level:
+          type: string
+          minLength: 1
+        capacity:
+          type: integer
+          minimum: 1
+        description:
+          type: ["string", "null"]
+
+    # ---------- Packages ----------
+    Package:
+      type: object
+      required:
+        [
+          id,
+          name,
+          description,
+          category,
+          price,
+          originalPrice,
+          sessionCount,
+          validityDays,
+          imageObjectPath,
+          isPromo,
+          active,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          description: "e.g. Pole, Aerial, Dance, Open Studio"
+        price:
+          type: number
+        originalPrice:
+          type: ["number", "null"]
+          description: Set when isPromo is true to show a struck-through price.
+        sessionCount:
+          type: integer
+        validityDays:
+          type: integer
+        imageObjectPath:
+          type: ["string", "null"]
+        isPromo:
+          type: boolean
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    PackageInput:
+      type: object
+      required: [name, description, category, price, sessionCount, validityDays]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          minimum: 0
+        originalPrice:
+          type: number
+          minimum: 0
+        sessionCount:
+          type: integer
+          minimum: 1
+        validityDays:
+          type: integer
+          minimum: 1
+        imageObjectPath:
+          type: string
+        isPromo:
+          type: boolean
+        active:
+          type: boolean
+    PackageUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          minimum: 0
+        originalPrice:
+          type: ["number", "null"]
+        sessionCount:
+          type: integer
+          minimum: 1
+        validityDays:
+          type: integer
+          minimum: 1
+        imageObjectPath:
+          type: ["string", "null"]
+        isPromo:
+          type: boolean
+        active:
+          type: boolean
+
+    # ---------- Payment methods ----------
+    PaymentMethod:
+      type: object
+      required: [id, label, qrImageObjectPath, instructions, active, createdAt]
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+          description: "e.g. GCash, Bank Transfer"
+        qrImageObjectPath:
+          type: string
+        instructions:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    PaymentMethodInput:
+      type: object
+      required: [label, qrImageObjectPath]
+      properties:
+        label:
+          type: string
+          minLength: 1
+        qrImageObjectPath:
+          type: string
+          minLength: 1
+        instructions:
+          type: string
+        active:
+          type: boolean
+    PaymentMethodUpdate:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+        qrImageObjectPath:
+          type: string
+          minLength: 1
+        instructions:
+          type: ["string", "null"]
+        active:
+          type: boolean
+
+    # ---------- Purchases ----------
+    PurchaseStatus:
+      type: string
+      enum: [pending, confirmed, rejected]
+    Purchase:
+      type: object
+      required:
+        [
+          id,
+          studentId,
+          packageId,
+          packageName,
+          amount,
+          screenshotObjectPath,
+          status,
+          reviewNotes,
+          submittedAt,
+          reviewedAt,
+        ]
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        packageId:
+          type: integer
+        packageName:
+          type: string
+        amount:
+          type: number
+        screenshotObjectPath:
+          type: string
+        status:
+          $ref: "#/components/schemas/PurchaseStatus"
+        reviewNotes:
+          type: ["string", "null"]
+        submittedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: ["string", "null"]
+          format: date-time
+    PurchaseInput:
+      type: object
+      required: [packageId, amount, screenshotObjectPath]
+      properties:
+        packageId:
+          type: integer
+        amount:
+          type: number
+          minimum: 0
+        screenshotObjectPath:
+          type: string
+          minLength: 1
+    PurchaseReview:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/PurchaseStatus"
+        reviewNotes:
+          type: string
+
+    # ---------- Rentals ----------
+    RentalStatus:
+      type: string
+      enum: [pending, confirmed, rejected]
+    Rental:
+      type: object
+      required:
+        [
+          id,
+          requesterName,
+          email,
+          phone,
+          date,
+          startTime,
+          endTime,
+          purpose,
+          status,
+          reviewNotes,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: integer
+        requesterName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        date:
+          type: string
+          description: "Calendar date, YYYY-MM-DD"
+        startTime:
+          type: string
+        endTime:
+          type: string
+        purpose:
+          type: string
+        status:
+          $ref: "#/components/schemas/RentalStatus"
+        reviewNotes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    RentalInput:
+      type: object
+      required: [requesterName, email, phone, date, startTime, endTime, purpose]
+      properties:
+        requesterName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+        date:
+          type: string
+          minLength: 1
+        startTime:
+          type: string
+          minLength: 1
+        endTime:
+          type: string
+          minLength: 1
+        purpose:
+          type: string
+          minLength: 1
+    RentalReview:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/RentalStatus"
+        reviewNotes:
+          type: string
+
+    # ---------- Dashboard ----------
+    DashboardSummary:
+      type: object
+      required:
+        [
+          totalStudents,
+          pendingPurchases,
+          pendingRentals,
+          confirmedRevenue,
+          upcomingClassCount,
+        ]
+      properties:
+        totalStudents:
+          type: integer
+        pendingPurchases:
+          type: integer
+        pendingRentals:
+          type: integer
+        confirmedRevenue:
+          type: number
+        upcomingClassCount:
+          type: integer
